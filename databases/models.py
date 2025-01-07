@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -14,6 +15,14 @@ class Article(Base):
     updated_at = Column(Date)
     
     comments = relationship('Comment', back_populates='article')
+
+@dataclass
+class ArticleQueryParams:
+    title: str = None
+    offset: int = 0
+    limit: int = 50
+
+
 
 class Comment(Base):
     __tablename__ = 'comment'
