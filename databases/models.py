@@ -8,20 +8,13 @@ Base = declarative_base()
 class Article(Base):
     __tablename__ = 'article'
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255))
     content = Column(Text)
     created_at = Column(Date)
     updated_at = Column(Date)
-    
+
     comments = relationship('Comment', back_populates='article')
-
-@dataclass
-class ArticleQueryParams:
-    title: str = None
-    offset: int = 0
-    limit: int = 50
-
 
 
 class Comment(Base):
