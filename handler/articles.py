@@ -1,21 +1,17 @@
 from fastapi import HTTPException
-from fastapi.encoders import jsonable_encoder
 from databases.models import Article, Comment
 from databases.settings import session
-from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 from datetime import date as Date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # 記事取得
-@dataclass
-class ArticleQueryParams:
-    title: str = None
-    offset: int = 0
-    limit: int = 50
+class ArticleGetIn(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=64)
+    offset: Optional[int] = Field(0, ge=0)
+    limit: Optional[int] = Field(50, ge=0, le=100)
 
-@dataclass
-class ArticleListItem:
+class ArticleListItem(BaseModel):
     id: int
     title: str
     content: str
@@ -23,14 +19,13 @@ class ArticleListItem:
     created_at: Date
     updated_at: Date
 
-@dataclass
-class ArticleResponse:
+class ArticleGetOut(BaseModel):
     list: List[ArticleListItem]
     total: int
     offset: int
     count: int
 
-def select_articles(params: ArticleQueryParams):
+def select_articles(params: ArticleGetIn):
     articleQuery = session.query(Article)
     
     if params.title:
@@ -47,32 +42,43 @@ def select_articles(params: ArticleQueryParams):
         list.append(ArticleListItem(id=article.id, title=article.title, content=article.content, comment_count=comment_count, created_at=article.created_at, updated_at=article.updated_at))
 
     # resultの内容をArticleに詰め直す
-    response = ArticleResponse(list=list, total=total, offset=params.offset, count=len(list))
+    response = ArticleGetOut(list=list, total=total, offset=params.offset, count=len(list))
 
     return response
 
 
 # 記事作成
-class ArticleBody(BaseModel):
-    title: str
+class ArticlePostIn(BaseModel):
+    title: str = Field(..., min_length=1, max_length=64)
     content: str
 
-def create_article(payload: ArticleBody):
-    # title, contentのバリデーションエラーの時は400エラーとする
-    if not payload.title:
-        raise HTTPException(status_code=400, detail="title is empty")
-    
-    if len(payload.title) > 64:
-        raise HTTPException(status_code=400, detail="Title must be 64 characters or less")
-    
-    if not payload.content:
-        raise HTTPException(status_code=400, detail="content is empty")
-
+def create_article(payload: ArticlePostIn):
     created_at = Date.today()
     updated_at = Date.today()
     article = Article(title=payload.title, content=payload.content,created_at=created_at, updated_at=updated_at)
     session.add(article)
     session.commit()
     session.refresh(article)
+
+    return {"status": "success"}
+
+
+# 記事編集
+class ArticlePutIn(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=64)
+    content: Optional[str]
+
+def update_article(id: int, payload: ArticlePutIn):
+    article = session.query(Article).filter(Article.id == id).first()
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    if payload.title:
+        article.title = payload.title
+    if payload.content:
+        article.content = payload.content
+    
+    article.updated_at = Date.today()
+    session.commit()
 
     return {"status": "success"}
