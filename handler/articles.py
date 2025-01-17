@@ -82,3 +82,24 @@ def update_article(id: int, payload: ArticlePutIn):
     session.commit()
 
     return {"status": "success"}
+
+
+# 記事削除
+class ArticleDeleteIn(BaseModel):
+    ids: List[int]
+
+def delete_articles_handler(ids: ArticleDeleteIn):
+    for id in ids.ids:
+        article = session.query(Article).filter(Article.id == id).first()
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        session.delete(article)
+
+        # 記事に紐づくコメントも削除
+        commentQuery = session.query(Comment).filter(Comment.article_id == id)
+        for comment in commentQuery:
+            session.delete(comment)    
+    
+    session.commit()
+
+    return {"status": "success"}
